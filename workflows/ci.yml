@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  app:
+    name: Motor, tipos e build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Dependências sem vulnerabilidade conhecida
+        run: npm run auditar
+      - run: npm run typecheck
+      - run: npm test
+        env:
+          FC_RUNS: 2000
+      - name: Cabeçalhos de segurança em dia com a fonte
+        run: node apps/web/seguranca.mjs && git diff --exit-code supabase/functions/visao-ia/ferramenta.json supabase/functions/assinatura/oferta.json apps/web/vercel.json apps/web/public/_headers apps/web/public/_redirects
+      - run: npm run build -w @marcenaria/web
+        env:
+          VITE_SUPABASE_URL: http://127.0.0.1:54321
+          VITE_SUPABASE_ANON_KEY: ci
+
+  banco:
+    name: Banco (RLS, auditoria de segurança e fluxo completo)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - run: npm ci
+      - name: Sobe o Supabase local (aplica as migrations)
+        run: supabase start -x studio,imgproxy,edge-runtime,logflare,vector,supavisor
+      - run: npm run test:db
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
