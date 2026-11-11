@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 128" width="640" height="128" role="img" aria-label="Ver no meu ambiente">
+  <rect width="640" height="128" rx="24" fill="#3B2416"/>
+  <g fill="none" stroke="#DB8A35" stroke-width="6" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M64 40 96 24 128 40v48L96 104 64 88z"/>
+    <path d="M64 40 96 56 128 40M96 56v48"/>
+  </g>
+  <text x="160" y="78" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif" font-size="40" font-weight="600" fill="#F6EFE6">Ver no meu ambiente</text>
+</svg>

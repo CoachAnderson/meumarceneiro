@@ -1,0 +1,79 @@
+@import 'tailwindcss';
+
+/*
+ * Marca Meu Marceneiro (arquivos em /marca na raiz do projeto).
+ * Nogueira: texto e botões. Freijó: destaque (substitui a escala "amber" do
+ * Tailwind, então todo destaque do sistema já sai na cor da marca).
+ * Creme MDF: fundo. Pinho: sucesso.
+ */
+@theme {
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+
+  --color-nogueira: #3b2416;
+  --color-nogueira-escura: #2a1a10;
+  --color-freijo: #db8a35;
+  --color-freijo-escuro: #c2702a;
+  --color-creme: #f6efe6;
+  --color-pinho: #2f6b57;
+
+  /* Freijó no lugar do âmbar. */
+  --color-amber-50: #fdf7ee;
+  --color-amber-100: #faebd5;
+  --color-amber-200: #f4d3a8;
+  --color-amber-300: #edb676;
+  --color-amber-400: #e7a052;
+  --color-amber-500: #db8a35;
+  --color-amber-600: #c2702a;
+  --color-amber-700: #9e5724;
+  --color-amber-800: #7e4522;
+  --color-amber-900: #66391f;
+  --color-amber-950: #3a1d0e;
+
+  /* Tons escuros quentes: texto e botões em nogueira. */
+  --color-stone-700: #5b4535;
+  --color-stone-800: #3b2416;
+  --color-stone-900: #2a1a10;
+  --color-stone-950: #1c110a;
+}
+
+/* Números de medida e valores alinhados em colunas. */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Impressão do plano de corte: a área é criada no fim do body só na hora de imprimir. */
+.area-impressao {
+  display: none;
+}
+@media print {
+  @page {
+    margin: 10mm;
+  }
+  body > *:not(.area-impressao) {
+    display: none !important;
+  }
+  .area-impressao {
+    display: block;
+    /* Mantém os fundos coloridos (total da proposta, peças do plano). */
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .area-impressao figure {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    margin-bottom: 6mm;
+  }
+  .area-impressao svg {
+    width: auto !important;
+    max-width: 100%;
+    max-height: 235mm;
+    margin: 0 auto;
+  }
+  .area-impressao .folhas {
+    display: block !important;
+  }
+  .area-impressao .overflow-x-auto {
+    overflow: visible !important;
+    margin: 0 !important;
+  }
+}
