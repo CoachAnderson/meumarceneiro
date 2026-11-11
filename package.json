@@ -1,0 +1,25 @@
+{
+  "name": "marcenaria",
+  "private": true,
+  "version": "1.8.0",
+  "description": "Meu Marceneiro: plataforma SaaS para marcenarias (projeto paramétrico, lista de peças, plano de corte, orçamento e produção).",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "npm run dev -w @marcenaria/web",
+    "build": "npm run build -w @marcenaria/web",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test -w @marcenaria/core -w @marcenaria/catalog",
+    "test:db": "npm run test -w @marcenaria/db-tests",
+    "db:start": "supabase start",
+    "db:reset": "supabase db reset",
+    "db:types": "supabase gen types typescript --local > apps/web/src/lib/database.generated.ts",
+    "auditar": "npm audit --audit-level=moderate",
+    "verificar": "npm run typecheck && npm test && npm run test:db && npm run build && npm run auditar"
+  }
+}

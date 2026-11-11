@@ -1,0 +1,40 @@
+# Configuração do Supabase local (supabase start).
+# Chaves não listadas usam o padrão da CLI. Rode `supabase init --force`
+# se quiser o arquivo completo comentado.
+project_id = "marcenaria"
+
+[api]
+port = 54321
+schemas = ["public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+# Use a mesma versão do projeto hospedado (Settings → Infrastructure).
+major_version = 17
+
+[auth]
+site_url = "http://localhost:5173"
+additional_redirect_urls = ["http://localhost:5173/**"]
+jwt_expiry = 3600
+enable_signup = true
+minimum_password_length = 8
+
+[auth.email]
+enable_signup = true
+# Em produção, ligue a confirmação de e-mail no painel do Supabase.
+enable_confirmations = false
+double_confirm_changes = true
+
+# Visão Inteligente IA: só usuários logados chamam a função.
+[functions.visao-ia]
+verify_jwt = true
+
+# Assinatura: só usuários logados chamam.
+[functions.assinatura]
+verify_jwt = true
+
+# Avisos do Mercado Pago: sem login; a origem é conferida pela assinatura do aviso (HMAC).
+[functions.mp-webhook]
+verify_jwt = false

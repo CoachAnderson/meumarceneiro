@@ -1,0 +1,11 @@
+{
+  "mensal": {
+    "codigo": "mensal",
+    "nome": "Plano mensal",
+    "reason": "Meu Marceneiro - assinatura mensal",
+    "valorCentavos": 14900,
+    "frequency": 1,
+    "frequency_type": "months",
+    "currency_id": "BRL"
+  }
+}
