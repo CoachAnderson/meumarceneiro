@@ -1,0 +1,27 @@
+{
+  "name": "Meu Marceneiro",
+  "short_name": "Meu Marceneiro",
+  "description": "Projeto de móveis planejados, lista de peças, plano de corte e orçamento.",
+  "lang": "pt-BR",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F6EFE6",
+  "theme_color": "#3B2416",
+  "icons": [
+    {
+      "src": "/icone-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icone-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}
