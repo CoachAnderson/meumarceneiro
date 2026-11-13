@@ -1,0 +1,333 @@
+@import 'tailwindcss';
+
+/*
+ * Marca Meu Marceneiro (arquivos em /marca na raiz do projeto).
+ * Nogueira: texto e botões. Freijó: destaque (substitui a escala "amber" do
+ * Tailwind, então todo destaque do sistema já sai na cor da marca).
+ * Creme MDF: fundo. Pinho: sucesso.
+ */
+@theme {
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+
+  --color-nogueira: #3b2416;
+  --color-nogueira-escura: #2a1a10;
+  --color-freijo: #db8a35;
+  --color-freijo-escuro: #c2702a;
+  --color-creme: #f6efe6;
+  --color-pinho: #2f6b57;
+
+  /* Freijó no lugar do âmbar. */
+  --color-amber-50: #fdf7ee;
+  --color-amber-100: #faebd5;
+  --color-amber-200: #f4d3a8;
+  --color-amber-300: #edb676;
+  --color-amber-400: #e7a052;
+  --color-amber-500: #db8a35;
+  --color-amber-600: #c2702a;
+  --color-amber-700: #9e5724;
+  --color-amber-800: #7e4522;
+  --color-amber-900: #66391f;
+  --color-amber-950: #3a1d0e;
+
+  /* Tons escuros quentes: texto e botões em nogueira. */
+  --color-stone-700: #5b4535;
+  --color-stone-800: #3b2416;
+  --color-stone-900: #2a1a10;
+  --color-stone-950: #1c110a;
+}
+
+/*
+ * Modo escuro (preferência de cada pessoa: lib/tema.ts põe data-tema no <html>).
+ * Em vez de repetir "dark:" em cada tela, troca as próprias cores do tema:
+ * as escalas são espelhadas (o 50 vira o mais escuro, o 900 o mais claro) e o
+ * "branco" dos cartões vira nogueira escura. Só na tela: a impressão
+ * (proposta, plano de corte, folha de furação) continua clara.
+ */
+/* Séries dos gráficos (validadas para daltonismo e contraste, nos dois temas). */
+:root {
+  --serie-1: #2a78d6;
+  --serie-2: #eb6834;
+}
+
+@media screen {
+  :root[data-tema='escuro'] {
+    color-scheme: dark;
+    --serie-1: #3987e5;
+    --serie-2: #d95926;
+
+    --color-white: #241a12;
+    --color-creme: #16100b;
+    --color-nogueira: #f1e4d4;
+    --color-nogueira-escura: #fbf3ea;
+    --color-freijo-escuro: #e7a052;
+    --color-pinho: #63b996;
+
+    --color-stone-50: #1c140e;
+    --color-stone-100: #2a1f17;
+    --color-stone-200: #3b2d23;
+    --color-stone-300: #524034;
+    --color-stone-400: #7d6c60;
+    --color-stone-500: #9d8e82;
+    --color-stone-600: #bbaea3;
+    --color-stone-700: #d5cabf;
+    --color-stone-800: #e8dfd6;
+    --color-stone-900: #f4ede5;
+    --color-stone-950: #faf6f1;
+
+    --color-amber-50: #2e1b0e;
+    --color-amber-100: #3d2413;
+    --color-amber-200: #5a3519;
+    --color-amber-300: #7e4a20;
+    --color-amber-400: #a8622a;
+    --color-amber-600: #e7a052;
+    --color-amber-700: #edb676;
+    --color-amber-800: #f4d3a8;
+    --color-amber-900: #faebd5;
+    --color-amber-950: #fdf7ee;
+
+    --color-red-50: #3a1513;
+    --color-red-100: #4a1b18;
+    --color-red-200: #6b2621;
+    --color-red-300: #8f342d;
+    --color-red-600: #f87171;
+    --color-red-700: #fca5a5;
+    --color-red-800: #fecaca;
+    --color-red-900: #fee2e2;
+
+    --color-emerald-50: #0f2a20;
+    --color-emerald-100: #133628;
+    --color-emerald-200: #1b4a37;
+    --color-emerald-300: #24624a;
+    --color-emerald-600: #34d399;
+    --color-emerald-700: #6ee7b7;
+    --color-emerald-800: #a7f3d0;
+    --color-emerald-900: #d1fae5;
+
+    --color-sky-50: #0c2333;
+    --color-sky-100: #0f2d40;
+    --color-sky-200: #16425b;
+    --color-sky-300: #1f5a7a;
+    --color-sky-600: #38bdf8;
+    --color-sky-700: #7dd3fc;
+    --color-sky-800: #bae6fd;
+    --color-sky-900: #e0f2fe;
+
+    --color-orange-50: #34190b;
+    --color-orange-100: #44210f;
+    --color-orange-200: #642f15;
+    --color-orange-300: #8a411c;
+    --color-orange-600: #fb923c;
+    --color-orange-700: #fdba74;
+    --color-orange-800: #fed7aa;
+    --color-orange-900: #ffedd5;
+  }
+
+  /* Desenhos técnicos ficam numa "folha de papel" clara, como no impresso. */
+  :root[data-tema='escuro'] svg.desenho-tecnico {
+    background: #f6efe6;
+    border-radius: 0.375rem;
+  }
+}
+
+/*
+ * Toque (celular e tablet): botões, seleções e campos com pelo menos 44 px,
+ * o tamanho de um dedo. E campos com letra de 16 px: abaixo disso o iPhone
+ * aproxima a tela sozinho ao tocar no campo. Fica fora de @layer de propósito,
+ * para valer por cima das classes de tamanho das telas.
+ */
+@media (pointer: coarse) {
+  button,
+  select,
+  summary,
+  [role='tab'],
+  input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='color']):not([type='file']):not([type='hidden']) {
+    min-height: 44px;
+  }
+  button {
+    min-width: 44px;
+  }
+  input:not([type='checkbox']):not([type='radio']),
+  select,
+  textarea {
+    font-size: max(16px, 1em);
+  }
+  input[type='checkbox'],
+  input[type='radio'] {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+}
+
+/*
+ * Tabelas largas no celular viram cartões: cada linha um bloco, cada célula
+ * com o rótulo da coluna (data-rotulo) à esquerda e o valor à direita. As
+ * células marcadas data-cartao="titulo" formam a primeira linha do cartão.
+ * A partir do tablet (640 px), continua tabela; com a classe cartoes-tablet,
+ * só a partir de 1024 px.
+ */
+@media screen and (max-width: 639px) {
+  table.cartoes-celular,
+  table.cartoes-celular tbody,
+  table.cartoes-celular tfoot,
+  table.cartoes-celular tr {
+    display: block;
+    width: 100%;
+    min-width: 0;
+  }
+  table.cartoes-celular thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  table.cartoes-celular tr {
+    padding: 0.75rem 1.25rem;
+  }
+  table.cartoes-celular td {
+    display: block;
+    padding: 0.125rem 0;
+    text-align: right;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  table.cartoes-celular td * {
+    white-space: normal;
+  }
+  table.cartoes-celular td::before {
+    content: attr(data-rotulo);
+    float: left;
+    max-width: 50%;
+    margin-right: 1rem;
+    padding-top: 0.1rem;
+    text-align: left;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--color-stone-500);
+  }
+  table.cartoes-celular td::after {
+    content: '';
+    display: block;
+    clear: both;
+  }
+  table.cartoes-celular td[data-cartao='titulo'] {
+    display: inline;
+    padding: 0 0.375rem 0 0;
+    text-align: left;
+    font-weight: 600;
+    color: var(--color-stone-900);
+  }
+  table.cartoes-celular td[data-cartao='titulo']::before,
+  table.cartoes-celular td[data-cartao='titulo']::after {
+    content: none;
+  }
+  table.cartoes-celular td[data-cartao='titulo'] + td:not([data-cartao]) {
+    margin-top: 0.375rem;
+  }
+}
+
+/* As tabelas mais largas (lista de peças, fitas, ferragens) viram cartões também no tablet em pé. */
+@media screen and (max-width: 1023px) {
+  table.cartoes-tablet,
+  table.cartoes-tablet tbody,
+  table.cartoes-tablet tfoot,
+  table.cartoes-tablet tr {
+    display: block;
+    width: 100%;
+    min-width: 0;
+  }
+  table.cartoes-tablet thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  table.cartoes-tablet tr {
+    padding: 0.75rem 1.25rem;
+  }
+  table.cartoes-tablet td {
+    display: block;
+    padding: 0.125rem 0;
+    text-align: right;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  table.cartoes-tablet td * {
+    white-space: normal;
+  }
+  table.cartoes-tablet td::before {
+    content: attr(data-rotulo);
+    float: left;
+    max-width: 50%;
+    margin-right: 1rem;
+    padding-top: 0.1rem;
+    text-align: left;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--color-stone-500);
+  }
+  table.cartoes-tablet td::after {
+    content: '';
+    display: block;
+    clear: both;
+  }
+  table.cartoes-tablet td[data-cartao='titulo'] {
+    display: inline;
+    padding: 0 0.375rem 0 0;
+    text-align: left;
+    font-weight: 600;
+    color: var(--color-stone-900);
+  }
+  table.cartoes-tablet td[data-cartao='titulo']::before,
+  table.cartoes-tablet td[data-cartao='titulo']::after {
+    content: none;
+  }
+  table.cartoes-tablet td[data-cartao='titulo'] + td:not([data-cartao]) {
+    margin-top: 0.375rem;
+  }
+}
+
+/* Números de medida e valores alinhados em colunas. */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Impressão do plano de corte: a área é criada no fim do body só na hora de imprimir. */
+.area-impressao {
+  display: none;
+}
+@media print {
+  @page {
+    margin: 10mm;
+  }
+  body > *:not(.area-impressao) {
+    display: none !important;
+  }
+  .area-impressao {
+    display: block;
+    /* Mantém os fundos coloridos (total da proposta, peças do plano). */
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .area-impressao figure {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    margin-bottom: 6mm;
+  }
+  .area-impressao svg {
+    width: auto !important;
+    max-width: 100%;
+    max-height: 235mm;
+    margin: 0 auto;
+  }
+  .area-impressao .folhas {
+    display: block !important;
+  }
+  .area-impressao .overflow-x-auto {
+    overflow: visible !important;
+    margin: 0 !important;
+  }
+}
