@@ -29,7 +29,7 @@ export interface Dependencias extends Base {
   anonKey: string;
   /** Endereço público do site (segredo APP_URL), para a volta do pagamento. */
   appUrl: string;
-  /** Catálogo de ofertas do servidor (gerado do motor: oferta.json). */
+  /** Catálogo de ofertas do servidor (gerado do motor: oferta.ts). */
   offerCatalog: Record<string, OfertaServidor>;
 }
 

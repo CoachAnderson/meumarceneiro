@@ -1,3 +1,4 @@
+import { chavesSupabase } from '../_shared/chaves.ts';
 // Avisos do Mercado Pago — entrada da função no Supabase (Deno).
 // Esta função é pública (o Mercado Pago não manda login): quem garante a
 // origem é a assinatura do aviso, conferida em tratar.ts.
@@ -8,6 +9,7 @@
 import { tratarAviso } from './tratar.ts';
 
 const env = (nome: string) => Deno.env.get(nome) ?? '';
+const chaves = chavesSupabase(env);
 
 declare const EdgeRuntime: { waitUntil(p: Promise<unknown>): void } | undefined;
 
@@ -18,7 +20,7 @@ Deno.serve(async (req: Request) => {
     {
       buscar: (url, init) => fetch(url, init),
       supabaseUrl: env('SUPABASE_URL'),
-      chaveServico: env('SUPABASE_SERVICE_ROLE_KEY'),
+      chaveServico: chaves.servico,
       credencialMP: env('MP_ACCESS_TOKEN'),
       segredo: env('MP_WEBHOOK_SECRET'),
       registrar: (mensagem) => console.warn(`[mp-webhook] ${mensagem}`),

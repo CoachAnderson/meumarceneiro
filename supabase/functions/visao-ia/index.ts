@@ -4,32 +4,35 @@
 // Segredos (supabase secrets set ...):
 //   ANTHROPIC_API_KEY  chave da API da IA (obrigatória)
 //   VISAO_MODELO       modelo de visão (opcional; padrão abaixo)
-//   VISAO_ORIGEM       endereço do site, para o CORS (opcional; padrão: qualquer origem)
-import ferramenta from './ferramenta.json' with { type: 'json' };
+//   VISAO_ORIGEM       endereço do site, para o CORS (opcional; vários separados por vírgula)
+import { chavesSupabase } from '../_shared/chaves.ts';
+import { cabecalhosCors, responder } from '../_shared/http.ts';
+import ferramenta from './ferramenta.ts';
 import { tratar } from './tratar.ts';
 
 const env = (nome: string) => Deno.env.get(nome) ?? '';
-
-const cors = {
-  'Access-Control-Allow-Origin': env('VISAO_ORIGEM') || '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-};
+const chaves = chavesSupabase(env);
 
 Deno.serve(async (req: Request) => {
+  const cors = cabecalhosCors(env('VISAO_ORIGEM'), req.headers.get('origin'));
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
-  const corpo = await req.json().catch(() => null);
-  const saida = await tratar(
-    { metodo: req.method, autorizacao: req.headers.get('authorization'), corpo },
-    {
-      buscar: (url, init) => fetch(url, init),
-      supabaseUrl: env('SUPABASE_URL'),
-      anonKey: env('SUPABASE_ANON_KEY'),
-      chaveIA: env('ANTHROPIC_API_KEY'),
-      modelo: env('VISAO_MODELO') || 'claude-sonnet-5-5',
-      ferramenta: ferramenta.ferramenta,
-      instrucoes: ferramenta.instrucoes,
+  return responder(
+    cors,
+    async () => {
+      const corpo = await req.json().catch(() => null);
+      return tratar(
+        { metodo: req.method, autorizacao: req.headers.get('authorization'), corpo },
+        {
+          buscar: (url, init) => fetch(url, init),
+          supabaseUrl: env('SUPABASE_URL'),
+          anonKey: chaves.publica,
+          chaveIA: env('ANTHROPIC_API_KEY'),
+          modelo: env('VISAO_MODELO') || 'claude-sonnet-5-5',
+          ferramenta: ferramenta.ferramenta,
+          instrucoes: ferramenta.instrucoes,
+        },
+      );
     },
+    (m) => console.error(`[visao-ia] ${m}`),
   );
-  return new Response(JSON.stringify(saida.corpo), { status: saida.status, headers: { ...cors, 'content-type': 'application/json' } });
 });

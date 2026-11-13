@@ -34,7 +34,8 @@ DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres npm run ver
 
 ### O que nunca vai para o site
 
-- A chave `service_role` e a senha do banco. O site usa só a chave `anon`, que é pública por desenho: quem protege os dados são as regras do banco (RLS), testadas em `packages/db-tests`.
+- A chave secreta (`sb_secret_…`, ou a antiga `service_role`) e a senha do banco. O site usa só a chave publicável (`sb_publishable_…`, ou a antiga `anon`), que é pública por desenho: quem protege os dados são as regras do banco (RLS), testadas em `packages/db-tests`.
+- As funções de servidor aceitam as chaves novas e as antigas (veja `supabase/functions/_shared/chaves.ts`): o Supabase entrega as duas sozinho a cada função; não há segredo para criar.
 
 ## 2. Site
 
@@ -45,7 +46,7 @@ Variáveis de ambiente do build (as duas são públicas):
 | Variável | Valor |
 | --- | --- |
 | `VITE_SUPABASE_URL` | URL do projeto, `https://<ref>.supabase.co` |
-| `VITE_SUPABASE_ANON_KEY` | chave `anon` do projeto |
+| `VITE_SUPABASE_ANON_KEY` | chave publicável (`sb_publishable_…`, em Project Settings → API Keys) ou a antiga `anon` |
 
 ### Vercel
 
@@ -109,6 +110,18 @@ No editor, abaixo do desenho, o botão **Gerar link** publica o móvel em 3D e m
 - Serve para o cliente ter ideia do espaço. A posição é aproximada (erro de 1 a 3 cm é normal); não use para tirar medidas.
 - Mostra um módulo por vez, com cores lisas (sem textura de madeira).
 
+## Ver em óculos (realidade virtual e mista)
+
+O mesmo link do "Ver no ambiente" agora também abre em óculos. Aplique a migração `…23_ver_em_oculos.sql` (deixa o balde `ar` aceitar o arquivo da cena, `<id>.json`). Links gerados antes disso continuam abrindo no celular; para os óculos, gere de novo.
+
+- **Meta Quest 3, 3S, Pro e 2, Samsung Galaxy XR:** abrir o link no navegador dos óculos. Aparecem dois botões: **Ver na minha sala** (a sala de verdade pelas câmeras; aponta para o chão ou a parede e aperta o gatilho, ou faz a pinça, para colocar o móvel) e **Entrar no cômodo** (realidade virtual, com o cômodo da medição).
+- **Apple Vision Pro:** só o **Entrar no cômodo** (o Safari dele não tem realidade mista pela web). Para ver na sala de verdade, o botão do iPhone (Quick Look) abre o arquivo 3D.
+- **Óculos de encaixar o celular (VR Box):** botão **Abrir tela dividida** em qualquer celular. Olhar fixo por 1,5 s abre a porta, a gaveta ou o botão; os círculos no chão mudam o ponto de vista. No iPhone, o Safari pede licença para usar o giro do celular.
+- Nos óculos, apontar para uma porta ou gaveta abre e fecha. O menu ao lado do móvel abre tudo, troca as cores (ilustrativas, não são o padrão do MDF) e sai.
+- **Cômodo:** no editor, em "Cômodo para os óculos", escolha a medição, a parede e a distância do canto. Vão no link só as medidas da parede, o ângulo dos cantos e a posição dos pontos. Nome, endereço, fotos e observações ficam de fora. O que não foi medido (profundidade, altura, esquadro) é desenhado e marcado no chão como ilustrativo.
+- **Teste em óculos de verdade antes de mostrar a um cliente.** Aqui foi testado com o emulador de óculos da Meta (IWER, simulando um Quest 3) e com a tela dividida no navegador. Não deu para testar a detecção de chão e parede de verdade nem o conforto da tela dividida num VR Box.
+- No Quest, se o móvel não aparecer onde você aponta, faça a configuração do espaço (Configurações → Ambiente físico → Configuração do espaço): é ela que deixa o navegador achar o chão e as paredes.
+
 ## Termos de Uso e Política de Privacidade
 
 As páginas `/termos` e `/privacidade` são públicas. O cadastro só passa com o aceite marcado, e o banco grava a versão aceita e a hora (`usuarios.termos_versao`, `termos_aceitos_em`).
@@ -155,6 +168,62 @@ Sem estes passos o sistema funciona normalmente; só a tela Visão IA avisa que 
 5. Custo: cada análise envia uma imagem de até 1568 px de lado (cerca de 1.500 a 2.500 tokens de entrada) e recebe uma resposta curta. Acompanhe o gasto real na tabela `visao_analises` (tokens por análise) e no console da Anthropic.
 6. Privacidade: informe na sua política que as imagens enviadas pela Visão IA são processadas pela Anthropic.
 
+## Marceneiro virtual (opcional)
+
+Assistente com IA, em 3D e com voz, que explica o móvel ao cliente: no editor (você e o cliente juntos, no tablet) e na página do link "Ver no ambiente" (o cliente sozinho, sem conta). Usa a mesma chave da IA da Visão IA. Sem estes passos o resto do sistema funciona normalmente; só a conversa avisa que não está configurada.
+
+1. Aplique a migração `…18_marceneiro_virtual.sql` (`supabase db push`).
+2. Publique a função. Ela aceita chamadas sem login (o cliente não tem conta), por isso o `supabase/config.toml` já traz `verify_jwt = false` para ela; quem controla o uso é o banco.
+   ```bash
+   supabase secrets set ANTHROPIC_API_KEY=<sua chave>          # se ainda não fez na Visão IA
+   supabase secrets set APP_URL=https://app.meumarceneiro.com.br  # se ainda não fez na assinatura
+   supabase functions deploy marceneiro-virtual --no-verify-jwt
+   ```
+   Opcional: `supabase secrets set MARCENEIRO_MODELO=<modelo>` (padrão `claude-haiku-5-5`, rápido e barato para conversa).
+3. Teste no celular: no editor, preencha preço e prazo, clique em **Conversar aqui com o cliente** e faça perguntas, inclusive uma que a ficha não responde (ele deve dizer que a marcenaria informa). Gere o link e converse pela página do cliente.
+4. Controle de custo, feito pelo banco:
+   - cota mensal por empresa: 300 perguntas por padrão (`update empresas set marceneiro_limite_mensal = 600 where id = '...'`);
+   - cada link aceita até 40 perguntas e vale 30 dias;
+   - no máximo 6 perguntas por minuto por link e 10 por minuto por usuário no editor;
+   - a pergunta que falha não gasta cota.
+   Acompanhe os tokens na tabela `marceneiro_perguntas`. O texto da conversa não é gravado.
+5. Voz: a fala e o microfone são do próprio navegador, sem custo para você. A fala é gerada no aparelho (Android, iPhone, Windows e Mac têm voz em português). O microfone usa o reconhecimento do navegador, que no Chrome passa pelos servidores do Google e no Safari pelos da Apple; o sistema recebe só o texto. Onde não houver voz ou microfone, a conversa segue em texto.
+6. Privacidade: informe na sua política que as perguntas feitas ao marceneiro virtual são processadas pela Anthropic.
+
+## Manual de montagem e etiquetas com QR
+
+1. Aplique a migração `…19_etiquetas_oficina.sql` (`supabase db push`). Ela cria as tabelas das peças da ordem, a função que marca a etapa e o balde público `manuais` no Storage. Não há chave nem função de servidor para configurar.
+2. As etiquetas só existem nas ordens criadas depois desta versão. Ordem antiga mostra um aviso; para ter etiquetas, envie o projeto para a produção de novo.
+3. Impressora térmica: no diálogo de impressão, escolha o papel do mesmo tamanho da etiqueta escolhida na ordem (50 × 25, 60 × 40 ou 100 × 50 mm), margem zero e escala 100%. Cada etiqueta sai numa página. Imprima uma de teste e escaneie com a câmera do celular antes do lote todo.
+4. O QR abre `<seu endereço>/oficina/p/<id>`. Quem escaneia precisa entrar com a conta da equipe (a página pede login e volta para a peça). Dono, projetista e produção marcam a etapa; vendas só vê.
+5. Teste: crie uma ordem, imprima uma etiqueta, escaneie, toque em **Cortei** e confira o andamento na ordem e no quadro da produção. Gere o link do manual no editor e abra no celular sem estar logado.
+
+## Medição no local
+
+1. Aplique a migração `…20_medicao_local.sql` (`supabase db push`). Ela cria a tabela das medições e o balde **privado** `medicoes` no Storage, para as fotos da casa do cliente. Não há chave nem função de servidor para configurar.
+2. Confira no painel do Supabase (Storage) que o balde `medicoes` está marcado como privado. As fotos só abrem por link assinado, que vale 1 hora e só sai para quem é da equipe.
+3. Sem sinal: abra a medição no celular antes de entrar na casa (com sinal). Se o sinal cair no meio, continue medindo: medidas e fotos ficam guardadas no aparelho e sobem sozinhas quando o sinal volta. Abrir o sistema do zero sem sinal ainda não funciona.
+4. Teste: crie uma medição no celular, ligue o modo avião, meça uma parede e tire uma foto, desligue o modo avião e confira que o selo muda para **Salvo** e que a medição aparece no computador.
+
+## Financeiro, boleto e nota fiscal
+
+O financeiro (contas a receber e a pagar) só precisa do banco. O boleto e a nota fiscal usam a conta que **cada marcenaria** contrata no Mercado Pago e na Focus NFe: o dinheiro e as notas são da marcenaria, não seus.
+
+1. Aplique as migrações `…21_financeiro.sql` e `…22_boleto_nota_fiscal.sql` (`supabase db push`). Só o dono da marcenaria vê o financeiro.
+2. Crie a chave do cofre (guarda cifradas as chaves que as marcenarias colam) e publique as funções:
+   ```bash
+   supabase secrets set INTEGRACOES_CHAVE=$(openssl rand -base64 32)
+   supabase functions deploy cobranca
+   supabase functions deploy boleto-aviso --no-verify-jwt
+   ```
+   Guarde uma cópia da `INTEGRACOES_CHAVE` num cofre de senhas. Se ela for trocada ou perdida, todas as marcenarias precisam colar as chaves de novo.
+3. Cada marcenaria, em **Financeiro → Boleto e nota**:
+   - **Mercado Pago:** cola o Access Token da aplicação dela (Suas integrações → Credenciais). Comece com a credencial **de teste**. No painel do Mercado Pago dela, em Webhooks, cola o endereço que a tela mostra (`<SUPABASE_URL>/functions/v1/boleto-aviso?empresa=<id>`) e marca o evento **Order**. Sem o aviso, a baixa acontece quando o dono abre o financeiro (a tela confere os boletos em aberto).
+   - **Focus NFe:** cola o token da empresa (homologação primeiro) e preenche os dados fiscais: regime, CFOP, NCM, CSOSN ou CST, PIS/COFINS e, para a montagem, o item da lista de serviço e a alíquota do ISS. **O contador da marcenaria precisa conferir esses códigos.** O sistema não inventa código fiscal: se faltar algum, ele diz o que falta e não emite.
+   - O cliente precisa ter CPF ou CNPJ e endereço completo com o código IBGE do município (cadastro do cliente).
+4. Teste antes de vender, em ambiente de teste: lance uma conta a receber, emita o boleto, pague com o usuário de teste do Mercado Pago e confira a baixa. Emita uma NF-e e uma NFS-e em homologação, consulte, abra o DANFE e cancele uma delas.
+5. Reforma tributária: a partir de 2026 as notas passam a ter os campos de IBS e CBS. Confira com a Focus NFe e com o contador quais campos o município e o regime da marcenaria já exigem antes de ligar a produção.
+
 ## 3. Depois de publicar
 
 Roteiro de conferência manual (leva uns 15 minutos), com duas contas em empresas diferentes:
@@ -177,8 +246,11 @@ Roteiro de conferência manual (leva uns 15 minutos), com duas contas em empresa
 - **Assinatura e cobrança** das marcenarias (planos, pagamento) não fazem parte do sistema ainda.
 - **Cálculo no navegador:** medidas, plano de corte e orçamento são calculados no navegador e gravados como fotografia. Um usuário mal-intencionado poderia gravar números errados no *próprio* projeto, nunca no de outra empresa. Uma conferência no servidor antes de liberar para fabricação exigiria uma Edge Function rodando o mesmo motor.
 - **Testes de tela automatizados** não estão no repositório. O motor e o banco têm testes automáticos; as telas foram conferidas por capturas com dados simulados e pedem o roteiro manual acima a cada publicação.
-- **Mesa:** só o tipo "mesa com pés de MDF" (tampo, dois pés em painel, saia, travessa e borda engrossada opcional). Não há ainda mesa com pés comprados, bancada suspensa nem tampo sobre gabinetes. Com borda engrossada, a lista conta a fita só na borda do tampo; use fita larga o bastante para cobrir tampo e faixa (o sistema avisa a largura). Sapatas ou niveladores dos pés não entram na lista de ferragens.
-- **Furação:** cobre junções da caixa, calço da dobradiça, puxador, copa, pinos de prateleira e, nas gavetas, corrediça (no móvel e na gaveta), montagem da caixa, fundo parafusado e fixação da frente pela contrafrente. Não há exportação para CNC. O padrão da corrediça (furos a 37 mm da frente e a cada 128 mm, a 22,5 mm da base) é um ponto de partida: cada marca de corrediça tem um gabarito próprio, então meça a sua e grave como padrão da marcenaria. As frentes de gaveta de um mesmo vão podem aparecer como itens separados na lista de peças: os furos de fixação caem em alturas um pouco diferentes em cada uma, porque a caixa da gaveta não fica na mesma posição atrás de cada frente. Os padrões (tambor a 34 mm, calço a 37 mm, cavilha 8 × 30) são os mais comuns, mas cada marcenaria deve conferir com o gabarito da ferragem que usa e gravar o seu padrão. Projetos salvos antes desta versão continuam sem furação de montagem até alguém ligar.
-- **Cobrança:** a lógica foi testada com o Mercado Pago simulado. Nenhuma assinatura real ou de teste foi criada: o passo 4 acima é obrigatório antes de vender. Não há emissão de nota fiscal. O painel de vendas não registra quem estendeu um teste nem mostra estornos: para isso, use o painel do Mercado Pago.
+- **CNC:** o botão "DXF para CNC" (no plano de corte) gera um DXF R12 por lado de cada peça, com contorno na medida de corte e furos, canais e furos de topo em camadas nomeadas pela ferramenta e profundidade (veja o LEIAME.txt dentro do pacote). Os arquivos foram validados num leitor de DXF independente, mas não numa máquina: corte uma peça de teste e confira com a folha de furação antes de produzir. Não há ainda formato próprio de fabricante (Homag .mpr, Biesse .cix).
+- **Mesa e bancada:** quatro modelos (pés de MDF, pés comprados, bancada suspensa e tampo sobre gabinetes). Os pés comprados, os suportes da bancada e os gabinetes aparecem no desenho mas não entram na lista de corte: os pés e suportes entram na lista de ferragens, e os gabinetes são calculados à parte, como armário. Parafusos e buchas da parede não entram na lista, porque dependem da parede (alvenaria, drywall); confira a carga que o suporte aguenta no catálogo do fabricante. No tampo sobre gabinetes, a profundidade e a altura dos gabinetes que o sistema mostra são as que cabem embaixo do tampo; os furos de fixação são feitos por dentro de cada gabinete. Sapatas niveladoras só nos pés de MDF. Com borda engrossada, a lista conta a fita só na borda do tampo; use fita larga o bastante para cobrir tampo e faixa (o sistema avisa a largura). Nos modelos de parede não existe borda engrossada atrás.
+- **Furação:** cobre junções da caixa, calço da dobradiça, puxador, copa, pinos de prateleira e, nas gavetas, corrediça (no móvel e na gaveta), montagem da caixa, fundo parafusado e fixação da frente pela contrafrente. O padrão da corrediça (furos a 37 mm da frente e a cada 128 mm, a 22,5 mm da base) é um ponto de partida: cada marca de corrediça tem um gabarito próprio, então meça a sua e grave como padrão da marcenaria. As frentes de gaveta de um mesmo vão podem aparecer como itens separados na lista de peças: os furos de fixação caem em alturas um pouco diferentes em cada uma, porque a caixa da gaveta não fica na mesma posição atrás de cada frente. Os padrões (tambor a 34 mm, calço a 37 mm, cavilha 8 × 30) são os mais comuns, mas cada marcenaria deve conferir com o gabarito da ferragem que usa e gravar o seu padrão. Projetos salvos antes desta versão continuam sem furação de montagem até alguém ligar.
+- **Cobrança:** a lógica foi testada com o Mercado Pago simulado. Nenhuma assinatura real ou de teste foi criada: o passo 4 acima é obrigatório antes de vender. A nota fiscal da *assinatura* (sua, para as marcenarias) não é emitida pelo sistema. O painel de vendas não registra quem estendeu um teste nem mostra estornos: para isso, use o painel do Mercado Pago.
 - **Visão IA:** a lógica foi testada com respostas simuladas; a qualidade da leitura em fotos reais depende da IA e não foi medida. O formato cobre um móvel retangular por foto, com vãos lado a lado; móveis em L, portas de correr e nichos de alturas diferentes ficam de fora (a tela avisa).
+- **Marceneiro virtual:** a lógica foi testada com a IA simulada; a qualidade das respostas reais não foi medida. Ele recebe só a ficha do móvel (medidas, materiais, composição, ferragens e o que a marcenaria digitou) e tem ordem de não inventar nada fora dela, mas uma IA pode errar: o aviso na tela diz que preço, prazo e mudanças são confirmados pela marcenaria. No link, ele não muda o projeto nem registra pedidos; o cliente envia o resumo da conversa pelo WhatsApp. No editor, a medida pedida só vai para o desenho quando você clica em **Aplicar no desenho**, e o preço digitado é apagado. A conversa fica na página do móvel, não dentro da câmera de realidade aumentada: os visualizadores do Android e do iPhone não deixam sites desenharem por cima da câmera.
+- **Boleto e nota fiscal:** a lógica foi testada com o Mercado Pago e a Focus NFe simulados; nenhum boleto nem nota real ou de homologação foi emitido. Os nomes dos campos da Focus vieram da documentação e de exemplos dela; confira a primeira nota em homologação campo a campo. A nota sai com um item por orçamento (o móvel, ou a montagem). Carta de correção, nota de devolução, MDF-e e importação de XML de compra não estão no sistema. Pix e cartão não estão no recebimento automático: registre como baixa manual.
 - **LGPD:** o sistema guarda nome, e-mail e telefone de clientes das marcenarias. Antes de vender, publique política de privacidade e termos de uso e defina como atender pedidos de exclusão de dados.

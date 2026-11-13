@@ -7,6 +7,7 @@
  * As credenciais (MP_ACCESS_TOKEN e a chave de serviço do Supabase) ficam só
  * no servidor. Nada aqui grava credencial em registro de erro.
  */
+import { cabecalhosServico } from './chaves.ts';
 
 export interface Resposta {
   ok: boolean;
@@ -49,7 +50,7 @@ export function clienteMP(d: Pick<Base, 'buscar' | 'credencialMP'>): MpFetch {
 export async function rpcServico(d: Pick<Base, 'buscar' | 'supabaseUrl' | 'chaveServico'>, nome: string, args: Record<string, unknown>): Promise<{ ok: boolean; dados: unknown }> {
   const r = await d.buscar(`${d.supabaseUrl}/rest/v1/rpc/${nome}`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json', apikey: d.chaveServico, authorization: `Bearer ${d.chaveServico}` },
+    headers: cabecalhosServico(d.chaveServico),
     body: JSON.stringify(args),
   });
   return { ok: r.ok, dados: await r.json().catch(() => null) };

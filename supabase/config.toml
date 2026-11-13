@@ -36,5 +36,18 @@ verify_jwt = true
 verify_jwt = true
 
 # Avisos do Mercado Pago: sem login; a origem é conferida pela assinatura do aviso (HMAC).
+# Marceneiro virtual: o cliente abre o link sem login. O banco controla link, ritmo e cota.
+[functions.marceneiro-virtual]
+verify_jwt = false
+
 [functions.mp-webhook]
+verify_jwt = false
+
+# Boleto e nota fiscal da marcenaria: só o dono logado chama.
+[functions.cobranca]
+verify_jwt = true
+
+# Aviso de pagamento de boleto do Mercado Pago da marcenaria: sem login. A
+# função não confia no aviso: consulta a order com a chave da marcenaria.
+[functions.boleto-aviso]
 verify_jwt = false

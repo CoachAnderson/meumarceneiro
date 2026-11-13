@@ -4,32 +4,35 @@
 // Segredos (supabase secrets set ...):
 //   MP_ACCESS_TOKEN  credencial privada do Mercado Pago (Access Token da sua aplicação)
 //   APP_URL          endereço público do site, com https (para a volta do pagamento e o CORS)
-// SUPABASE_URL, SUPABASE_ANON_KEY e SUPABASE_SERVICE_ROLE_KEY já existem em toda função.
-import ofertas from './oferta.json' with { type: 'json' };
+// SUPABASE_URL e as chaves do projeto (novas ou antigas) já existem em toda função: veja _shared/chaves.ts.
+import { chavesSupabase } from '../_shared/chaves.ts';
+import { cabecalhosCors, responder } from '../_shared/http.ts';
+import ofertas from './oferta.ts';
 import { tratar } from './tratar.ts';
 
 const env = (nome: string) => Deno.env.get(nome) ?? '';
-
-const cors = {
-  'Access-Control-Allow-Origin': env('APP_URL') || '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-};
+const chaves = chavesSupabase(env);
 
 Deno.serve(async (req: Request) => {
+  const cors = cabecalhosCors(env('APP_URL'), req.headers.get('origin'));
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
-  const corpo = await req.json().catch(() => null);
-  const saida = await tratar(
-    { metodo: req.method, autorizacao: req.headers.get('authorization'), corpo },
-    {
-      buscar: (url, init) => fetch(url, init),
-      supabaseUrl: env('SUPABASE_URL'),
-      anonKey: env('SUPABASE_ANON_KEY'),
-      chaveServico: env('SUPABASE_SERVICE_ROLE_KEY'),
-      credencialMP: env('MP_ACCESS_TOKEN'),
-      appUrl: env('APP_URL'),
-      offerCatalog: ofertas,
+  return responder(
+    cors,
+    async () => {
+      const corpo = await req.json().catch(() => null);
+      return tratar(
+        { metodo: req.method, autorizacao: req.headers.get('authorization'), corpo },
+        {
+          buscar: (url, init) => fetch(url, init),
+          supabaseUrl: env('SUPABASE_URL'),
+          anonKey: chaves.publica,
+          chaveServico: chaves.servico,
+          credencialMP: env('MP_ACCESS_TOKEN'),
+          appUrl: env('APP_URL'),
+          offerCatalog: ofertas,
+        },
+      );
     },
+    (m) => console.error(`[assinatura] ${m}`),
   );
-  return new Response(JSON.stringify(saida.corpo), { status: saida.status, headers: { ...cors, 'content-type': 'application/json', 'cache-control': 'no-store' } });
 });
