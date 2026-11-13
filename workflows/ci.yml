@@ -23,7 +23,7 @@ jobs:
         env:
           FC_RUNS: 2000
       - name: Cabeçalhos de segurança em dia com a fonte
-        run: node apps/web/seguranca.mjs && git diff --exit-code supabase/functions/visao-ia/ferramenta.json supabase/functions/assinatura/oferta.json apps/web/vercel.json apps/web/public/_headers apps/web/public/_redirects
+        run: node apps/web/seguranca.mjs && git diff --exit-code supabase/functions/visao-ia/ferramenta.ts supabase/functions/assinatura/oferta.ts supabase/functions/marceneiro-virtual/ficha.ts apps/web/vercel.json apps/web/public/_headers apps/web/public/_redirects
       - run: npm run build -w @marcenaria/web
         env:
           VITE_SUPABASE_URL: http://127.0.0.1:54321
