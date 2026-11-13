@@ -29,7 +29,11 @@ export type FinalidadeFuro =
   | 'puxador'
   | 'corredica'
   | 'fixacao_frente'
-  | 'engrosso';
+  | 'engrosso'
+  | 'fixacao_pe'
+  | 'sapata'
+  | 'suporte'
+  | 'fixacao_tampo';
 
 /** Lado do móvel para onde a superfície furada olha: x+ direita, x− esquerda, y+ cima, y− baixo, z+ trás, z− frente. */
 export type DirecaoFace = 'x+' | 'x-' | 'y+' | 'y-' | 'z+' | 'z-';
@@ -108,7 +112,7 @@ export function corredicaPara(profundidade: number): Dmm | null {
   return r === null ? null : dmm(r);
 }
 
-export type CodigoFerragem = 'dobradica_reta' | 'dobradica_curva' | 'dobradica_supercurva' | 'corredica' | 'puxador' | 'suporte_prateleira' | 'minifix' | 'cavilha' | 'parafuso_montagem' | 'parafuso_gaveta' | 'parafuso_corredica' | 'parafuso_frente' | 'parafuso_engrosso';
+export type CodigoFerragem = 'dobradica_reta' | 'dobradica_curva' | 'dobradica_supercurva' | 'corredica' | 'puxador' | 'suporte_prateleira' | 'minifix' | 'cavilha' | 'parafuso_montagem' | 'parafuso_gaveta' | 'parafuso_corredica' | 'parafuso_frente' | 'parafuso_engrosso' | 'pe_mesa' | 'parafuso_pe' | 'sapata_niveladora' | 'mao_francesa' | 'suporte_invisivel' | 'cantoneira' | 'parafuso_suporte' | 'parafuso_tampo';
 
 export interface FerragemNecessaria {
   codigo: CodigoFerragem;
@@ -133,6 +137,14 @@ export const DESCRICAO_FERRAGEM: Record<CodigoFerragem, string> = {
   parafuso_corredica: 'Parafuso de corrediça',
   parafuso_frente: 'Parafuso de fixação da frente de gaveta',
   parafuso_engrosso: 'Parafuso da borda engrossada',
+  pe_mesa: 'Pé de mesa com chapa de fixação',
+  parafuso_pe: 'Parafuso da chapa do pé',
+  sapata_niveladora: 'Sapata niveladora (com bucha)',
+  mao_francesa: 'Mão-francesa',
+  suporte_invisivel: 'Suporte invisível (barra)',
+  cantoneira: 'Cantoneira de apoio',
+  parafuso_suporte: 'Parafuso do suporte no tampo',
+  parafuso_tampo: 'Parafuso do tampo no gabinete',
 };
 
 /** Soma ferragens iguais (mesmo código e comprimento). */
@@ -144,7 +156,7 @@ export function juntarFerragens(lista: readonly FerragemNecessaria[], multiplica
     if (e) e.quantidade += f.quantidade * multiplicar;
     else m.set(k, { ...f, quantidade: f.quantidade * multiplicar });
   }
-  const ordem: CodigoFerragem[] = ['dobradica_reta', 'dobradica_curva', 'dobradica_supercurva', 'corredica', 'puxador', 'suporte_prateleira', 'minifix', 'cavilha', 'parafuso_montagem', 'parafuso_gaveta', 'parafuso_corredica', 'parafuso_frente', 'parafuso_engrosso'];
+  const ordem: CodigoFerragem[] = ['dobradica_reta', 'dobradica_curva', 'dobradica_supercurva', 'corredica', 'puxador', 'suporte_prateleira', 'minifix', 'cavilha', 'parafuso_montagem', 'parafuso_gaveta', 'parafuso_corredica', 'parafuso_frente', 'parafuso_engrosso', 'pe_mesa', 'parafuso_pe', 'sapata_niveladora', 'mao_francesa', 'suporte_invisivel', 'cantoneira', 'parafuso_suporte', 'parafuso_tampo'];
   return [...m.values()].sort((a, b) => ordem.indexOf(a.codigo) - ordem.indexOf(b.codigo) || (a.comprimento ?? 0) - (b.comprimento ?? 0));
 }
 

@@ -2,7 +2,7 @@
  * Assinatura do sistema: plano, período de teste e leitura da situação.
  *
  * Este arquivo é a fonte do plano e do preço. A função de servidor usa uma
- * cópia gerada (supabase/functions/assinatura/oferta.json) e o teste confere
+ * cópia gerada (supabase/functions/assinatura/oferta.ts) e o teste confere
  * que as duas estão iguais. O navegador nunca envia preço: só o código do plano.
  */
 

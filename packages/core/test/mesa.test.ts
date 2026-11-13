@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import fc from "fast-check";
 import {
   calcularMesa,
+  dmm,
+  lerLargurasGabinetes,
   gerarListaPecas,
   intersecao,
   mm,
@@ -410,4 +412,207 @@ describe("propriedades: qualquer mesa válida", () => {
       }),
     );
   }, 600_000);
+});
+
+describe('sapatas niveladoras nos pés de MDF (conferido à mão)', () => {
+  it('2 furos de topo por pé, Ø10 × 20, a 50 mm da frente e de trás do pé, no meio da espessura', () => {
+    const r = calcularMesa({ ...REF, sapatas: true });
+    expect(r.erros).toEqual([]);
+    const pe = por(r, 'pe_esquerdo');
+    expect(furos(pe, 'sapata')[0]).toMatchObject({ face: 'y-', topo: true, diametro: mm(10), profundidade: mm(20) });
+    // Pé de 520 de profundidade: 50 e 470.
+    expect(centros(pe, 'sapata')).toEqual([[0, mm(50)], [0, mm(470)]]);
+    expect(r.ferragens.find((f) => f.codigo === 'sapata_niveladora')?.quantidade).toBe(4);
+  });
+  it('furo largo demais para o pé vira erro', () => {
+    expect(calcularMesa({ ...REF, sapatas: true, espessura: mm(15), parametros: { snd: 140 } }).erros[0]!.codigo).toBe('furo_largo');
+  });
+});
+
+describe('mesa com pés comprados (conferido à mão)', () => {
+  const BASE: EntradaMesa = { modelo: 'pes_comprados', L: mm(1200), A: mm(750), P: mm(800), espessura: mm(18), furacao: { juncao: 'minifix', engrosso: true } };
+
+  it('4 pés de 50 mm a 50 mm das bordas, 732 mm de altura, fora da lista de corte', () => {
+    const r = calcularMesa(BASE);
+    expect(r.erros).toEqual([]);
+    const pes = r.componentes.filter((c) => c.papel === 'pe_comprado');
+    expect(pes.map((p) => [p.caixa.x, p.caixa.z, p.caixa.dy])).toEqual([[mm(50), mm(50), mm(732)], [mm(1100), mm(50), mm(732)], [mm(50), mm(700), mm(732)], [mm(1100), mm(700), mm(732)]]);
+    expect(pes.every((p) => p.comprado)).toBe(true);
+    const lista = gerarListaPecas({ resultado: r, montagem: MONTAGEM_MESA, fundo: 'nenhum', espessuraFundo: mm(0) });
+    expect(lista.itens.map((i) => i.nome)).toEqual(['Tampo']);
+  });
+
+  it('chapa: 4 furos-guia Ø3 × 10 em quadrado de 60 mm centrado no pé (75 ± 30)', () => {
+    const r = calcularMesa(BASE);
+    const t = furos(por(r, 'tampo'), 'fixacao_pe');
+    expect(t[0]).toMatchObject({ face: 'y-', diametro: mm(3), profundidade: mm(10) });
+    const pts = centros(por(r, 'tampo'), 'fixacao_pe');
+    expect(pts.length).toBe(16);
+    for (const p of [[45, 45], [105, 45], [45, 105], [105, 105], [1095, 695], [1155, 755]]) expect(pts).toContainEqual(p.map((v) => mm(v!)));
+    expect(r.ferragens).toEqual(expect.arrayContaining([expect.objectContaining({ codigo: 'pe_mesa', quantidade: 4, comprimento: mm(732) }), expect.objectContaining({ codigo: 'parafuso_pe', quantidade: 16 })]));
+  });
+
+  it('com borda engrossada na frente: o pé recua para a chapa ficar atrás da faixa (80 + 15 = 95 mm)', () => {
+    const r = calcularMesa({ ...BASE, engrosso: { bordas: 'frente', camadas: 1 } });
+    expect(r.erros).toEqual([]);
+    expect(r.componentes.find((c) => c.id === 'pe_comprado_1')!.caixa.z).toBe(mm(95));
+    expect(r.avisos.map((a) => a.codigo)).toContain('recuo_ajustado');
+  });
+});
+
+describe('bancada suspensa (conferido à mão)', () => {
+  const BASE: EntradaMesa = { modelo: 'suspensa', L: mm(1200), A: mm(900), P: mm(500), espessura: mm(18), furacao: { juncao: 'minifix', engrosso: true } };
+
+  it('mão-francesa: 3 suportes (100, 600, 1100), furos a 30 e 180 mm da parede', () => {
+    const r = calcularMesa(BASE);
+    expect(r.erros).toEqual([]);
+    expect(r.componentes.filter((c) => c.papel === 'suporte').length).toBe(3);
+    const pts = centros(por(r, 'tampo'), 'suporte');
+    expect(pts).toEqual([100, 600, 1100].flatMap((x) => [[mm(x), mm(320)], [mm(x), mm(470)]]));
+    expect(r.ferragens).toEqual(expect.arrayContaining([expect.objectContaining({ codigo: 'mao_francesa', quantidade: 3 }), expect.objectContaining({ codigo: 'parafuso_suporte', quantidade: 6 })]));
+    expect(r.avisos.map((a) => a.codigo)).toContain('fixacao_parede');
+  });
+
+  it('suporte invisível: furo de topo Ø10 × 150 na borda de trás, sem peça no desenho', () => {
+    const r = calcularMesa({ ...BASE, suporte: 'invisivel' });
+    expect(r.erros).toEqual([]);
+    const f = furos(por(r, 'tampo'), 'suporte')[0]!;
+    expect(f).toMatchObject({ face: 'z+', topo: true, diametro: mm(10), profundidade: mm(150) });
+    expect(f.centros).toEqual([100, 600, 1100].map((x) => ({ u: mm(x), v: mm(500) })));
+    expect(r.componentes.some((c) => c.papel === 'suporte')).toBe(false);
+    expect(calcularMesa({ ...BASE, suporte: 'invisivel', espessura: mm(15) }).erros[0]!.codigo).toBe('tampo_fino');
+  });
+
+  it('borda engrossada atrás não existe na parede; bancada longa ganha mais suportes', () => {
+    expect(calcularMesa({ ...BASE, engrosso: { bordas: 'todos', camadas: 1 } }).erros[0]!.codigo).toBe('borda_na_parede');
+    expect(calcularMesa({ ...BASE, L: mm(2400) }).componentes.filter((c) => c.papel === 'suporte').length).toBe(5);
+  });
+});
+
+describe('tampo sobre gabinetes (conferido à mão)', () => {
+  const BASE: EntradaMesa = { modelo: 'sobre_gabinetes', L: mm(1), A: mm(900), P: mm(600), espessura: mm(18), gabinetes: [mm(600), mm(400), mm(800)], furacao: { juncao: 'minifix', engrosso: true } };
+
+  it('tampo de 1800 mm (600 + 400 + 800), gabinetes de referência embaixo, fora da lista', () => {
+    const r = calcularMesa(BASE);
+    expect(r.erros).toEqual([]);
+    expect(por(r, 'tampo').comprimento).toBe(mm(1800));
+    const g = r.componentes.filter((c) => c.papel === 'gabinete_ref');
+    expect(g.map((c) => [c.caixa.x, c.caixa.dx, c.caixa.dy, c.caixa.z, c.caixa.dz])).toEqual([
+      [0, mm(600), mm(882), mm(20), mm(580)],
+      [mm(600), mm(400), mm(882), mm(20), mm(580)],
+      [mm(1000), mm(800), mm(882), mm(20), mm(580)],
+    ]);
+    expect(gerarListaPecas({ resultado: r, montagem: MONTAGEM_MESA, fundo: 'nenhum', espessuraFundo: mm(0) }).itens.map((i) => i.nome)).toEqual(['Tampo']);
+  });
+
+  it('fixação: 2 por gabinete na frente (70 mm) e atrás (550 mm), a 50 mm das laterais', () => {
+    const r = calcularMesa(BASE);
+    const pts = centros(por(r, 'tampo'), 'fixacao_tampo');
+    const xs = [50, 550, 650, 950, 1050, 1750];
+    expect(pts).toEqual([...xs.map((x) => [mm(x), mm(70)]), ...xs.map((x) => [mm(x), mm(550)])]);
+    expect(r.ferragens.find((f) => f.codigo === 'parafuso_tampo')?.quantidade).toBe(12);
+    expect(r.avisos.map((a) => a.codigo)).toContain('furar_gabinete');
+  });
+
+  it('com balanço nas pontas: o tampo cresce e os gabinetes andam junto', () => {
+    const r = calcularMesa({ ...BASE, parametros: { tbe: 300, tbd: 200 } });
+    expect(por(r, 'tampo').comprimento).toBe(mm(1850));
+    expect(r.componentes.find((c) => c.id === 'gabinete_1')!.caixa.x).toBe(mm(30));
+  });
+
+  it('borda engrossada: régua de apoio atrás, gabinetes 18 mm mais baixos, parafuso na faixa e fora da linha dos parafusos dela', () => {
+    const r = calcularMesa({ ...BASE, engrosso: { bordas: 'frente', camadas: 1 } });
+    expect(r.erros).toEqual([]);
+    expect(por(r, 'engrosso_tras_1').nome).toBe('Régua de apoio, trás');
+    expect(r.componentes.find((c) => c.id === 'gabinete_1')!.caixa.dy).toBe(mm(864));
+    const frente = por(r, 'engrosso_frente_1');
+    const tras = por(r, 'engrosso_tras_1');
+    // Faixa 80 mm, balanço 20: apoio de 20 a 80; parafuso da faixa a 40 → fixação a 65.
+    expect(new Set(centros(frente, 'fixacao_tampo').map((p) => p[1]))).toEqual(new Set([mm(65)]));
+    // Régua 520–600; parafuso dela a 560 → fixação a 540 (20 mm da régua).
+    expect(new Set(centros(tras, 'fixacao_tampo').map((p) => p[1]))).toEqual(new Set([mm(20)]));
+    expect(furos(por(r, 'tampo'), 'fixacao_tampo')).toEqual([]);
+    expect(r.avisos.map((a) => a.codigo)).not.toContain('furos_encostados');
+  });
+
+  it('erros claros: sem gabinete, balanço maior que a faixa, borda engrossada atrás', () => {
+    expect(calcularMesa({ ...BASE, gabinetes: [] }).erros[0]!.codigo).toBe('gabinetes_invalidos');
+    expect(calcularMesa({ ...BASE, engrosso: { bordas: 'frente', camadas: 1 }, parametros: { tbf: 900 } }).erros[0]!.codigo).toBe('faixa_sem_apoio');
+    expect(calcularMesa({ ...BASE, engrosso: { bordas: 'todos', camadas: 1 } }).erros[0]!.codigo).toBe('borda_na_parede');
+  });
+});
+
+describe('propriedades: os quatro modelos', () => {
+  it('sem colisão, furos dentro das peças e sem furos encostados; comprados fora da lista', () => {
+    fc.assert(
+      fc.property(
+        fc.record({
+          modelo: fc.constantFrom('pes_mdf' as const, 'pes_comprados' as const, 'suspensa' as const, 'sobre_gabinetes' as const),
+          L: fc.integer({ min: 400, max: 2600 }),
+          A: fc.integer({ min: 500, max: 1100 }),
+          P: fc.integer({ min: 300, max: 1000 }),
+          e: fc.constantFrom(15, 18, 25),
+          bordas: fc.constantFrom('nenhuma' as const, 'frente' as const, 'tres_lados' as const),
+          camadas: fc.constantFrom(1 as const, 2 as const),
+          suporte: fc.constantFrom('mao_francesa' as const, 'cantoneira' as const, 'invisivel' as const),
+          gabinetes: fc.array(fc.integer({ min: 150, max: 1200 }), { minLength: 1, maxLength: 5 }),
+          tbf: fc.integer({ min: 0, max: 600 }),
+          sapatas: fc.boolean(),
+        }),
+        (v) => {
+          const r = calcularMesa({
+            modelo: v.modelo, L: mm(v.L), A: mm(v.A), P: mm(v.P), espessura: mm(v.e), sapatas: v.sapatas, suporte: v.suporte, travessa: true,
+            gabinetes: v.gabinetes.map((g) => mm(g)), engrosso: { bordas: v.bordas, camadas: v.camadas }, parametros: { tbf: v.tbf },
+            furacao: { juncao: 'minifix', engrosso: true },
+          });
+          fc.pre(r.valido);
+          for (let i = 0; i < r.componentes.length; i++) for (let j = i + 1; j < r.componentes.length; j++) expect(intersecao(r.componentes[i]!.caixa, r.componentes[j]!.caixa)).toBeNull();
+          for (const c of r.componentes) {
+            expect(orientacaoDaPeca(c), c.id).not.toBeNull();
+            for (const f of c.furos ?? []) {
+              for (const p of f.centros) {
+                expect(p.u).toBeGreaterThanOrEqual(0);
+                expect(p.u).toBeLessThanOrEqual(c.comprimento);
+                expect(p.v).toBeGreaterThanOrEqual(0);
+                expect(p.v).toBeLessThanOrEqual(c.largura);
+                if (!f.topo) expect(Math.min(p.u, p.v, c.comprimento - p.u, c.largura - p.v), `${c.id} ${f.finalidade}`).toBeGreaterThanOrEqual(f.diametro / 2);
+              }
+              if (!f.passante && !f.topo) expect(f.profundidade + 15).toBeLessThanOrEqual(c.espessura);
+            }
+          }
+          expect(r.avisos.map((a) => a.codigo), JSON.stringify(v)).not.toContain('furos_encostados');
+          const lista = gerarListaPecas({ resultado: r, montagem: MONTAGEM_MESA, fundo: 'nenhum', espessuraFundo: mm(0) });
+          expect(lista.itens.flatMap((i) => i.ids).some((id) => r.componentes.find((c) => c.id === id)?.comprado)).toBe(false);
+          // O tampo sempre existe e fica no topo.
+          expect(Math.max(...r.componentes.map((c) => c.caixa.y + c.caixa.dy))).toBe(mm(v.A));
+        },
+      ),
+    );
+  }, 600_000);
+});
+
+describe('lerLargurasGabinetes', () => {
+  it('lê as larguras na ordem, com +, ; ou espaço, e aceita "mm" e vírgula decimal', () => {
+    expect(lerLargurasGabinetes('600 + 400 + 800')).toEqual({ valores: [dmm(6000), dmm(4000), dmm(8000)], erro: null });
+    expect(lerLargurasGabinetes('600mm; 450,5 mm 300')).toEqual({ valores: [dmm(6000), dmm(4505), dmm(3000)], erro: null });
+  });
+
+  it('devolve mensagem (sem lançar erro) para texto inválido, vazio, zero ou ambíguo', () => {
+    expect(lerLargurasGabinetes('600 + abc').erro).toMatch(/^Gabinete 2: "abc" não é uma medida válida/);
+    expect(lerLargurasGabinetes('   ').erro).toMatch(/Informe a largura/);
+    expect(lerLargurasGabinetes('600 + 0').erro).toMatch(/Gabinete 2: a largura precisa ser maior que zero/);
+    expect(lerLargurasGabinetes('-600').erro).toMatch(/Gabinete 1/);
+    expect(lerLargurasGabinetes('2.750').erro).toMatch(/ambíguo/);
+    expect(lerLargurasGabinetes(Array(21).fill('300').join(' + ')).erro).toMatch(/no máximo 20/);
+  });
+
+  it('nunca lança erro, qualquer que seja o texto', () => {
+    fc.assert(
+      fc.property(fc.string({ maxLength: 60 }), (texto) => {
+        const r = lerLargurasGabinetes(texto);
+        expect(r.erro === null ? r.valores.length > 0 && r.valores.every((v) => v > 0) : r.valores.length === 0).toBe(true);
+      }),
+      { numRuns: Number(process.env.FC_RUNS ?? 300) },
+    );
+  });
 });

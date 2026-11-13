@@ -30,6 +30,7 @@ import {
   type Furo,
 } from './frentes';
 import { furarMontagem, PARAMETROS_FURACAO, type EntradaFuracao, type Juncao } from './furacao';
+import { posicoesPrateleiras, VAO_LIVRE_MIN, vaosLivres } from './ajustesInterior';
 import { intersecao } from './geometria';
 import { distribuir, dmm, formatarMm, type Dmm } from './unidades';
 
@@ -61,6 +62,11 @@ export interface Componente {
   caixa: Caixa;
   /** Furação (dobradiça, pino de prateleira), em coordenadas da peça. */
   furos?: Furo[];
+  /**
+   * Item comprado pronto ou só de referência (pé de metal, suporte, gabinete
+   * embaixo do tampo): aparece no desenho e no 3D, mas não vira peça a cortar.
+   */
+  comprado?: boolean;
 }
 
 export interface Vao {
@@ -97,6 +103,11 @@ export type TipoPrateleira = 'fixa' | 'regulavel';
 export interface PrateleirasDoVao {
   quantidade: number;
   tipo: TipoPrateleira;
+  /**
+   * Altura de cada prateleira: do fundo interno até a face de baixo dela.
+   * null (ou lista ausente) = automática, com espaçamento igual.
+   */
+  alturas?: ReadonlyArray<Dmm | null>;
 }
 
 export interface EntradaInterior {
@@ -275,7 +286,7 @@ export function calcularModulo(modelo: ModeloCompilado, entrada: EntradaModulo):
   }
 
   // Interior.
-  const vaos = calcularInterior(entrada, ambiente, componentes, erros);
+  const vaos = calcularInterior(entrada, ambiente, componentes, erros, avisos);
   const ferragens: FerragemNecessaria[] = [];
   if (erros.length === 0) {
     furarPinos(ambiente, vaos, componentes, ferragens, avisos);
@@ -328,6 +339,7 @@ function calcularInterior(
   ambiente: Map<string, Valor>,
   componentes: Componente[],
   erros: Problema[],
+  avisos: Problema[],
 ): Vao[] {
   const interior = entrada.interior ?? { divisorias: 0 };
   const n = interior.divisorias;
@@ -422,17 +434,24 @@ function calcularInterior(
       continue;
     }
     if (p.quantidade === 0) continue;
-    // Posição de desenho: espaçamento igual. Não altera as medidas da peça.
-    const espacos = Hi - p.quantidade * e;
-    if (espacos < 0) {
+    // Posição: a altura informada de cada prateleira, ou espaçamento igual.
+    // Não altera as medidas da peça; muda a furação das fixas (junções) e o desenho.
+    if (Hi - p.quantidade * e < 0) {
       erros.push({ codigo: 'prateleiras_demais', mensagem: `Vão ${v.indice}: ${p.quantidade} prateleiras não cabem na altura interna.` });
       continue;
     }
-    const intervalos = distribuir(dmm(espacos), p.quantidade + 1);
-    let y = yi;
+    const pos = posicoesPrateleiras(dmm(Hi), e, p.quantidade, p.alturas);
+    if (pos.erro !== null) {
+      erros.push({ codigo: 'prateleiras_altura', mensagem: `Vão ${v.indice}: ${pos.erro}.` });
+      continue;
+    }
+    const livres = vaosLivres(dmm(Hi), e, pos.posicoes);
+    if (livres.some((l) => l < VAO_LIVRE_MIN)) {
+      avisos.push({ codigo: 'vao_livre_pequeno', mensagem: `Vão ${v.indice}: ficou um espaço de ${formatarMm(Math.min(...livres) as Dmm)} mm entre prateleiras; confira se é isso mesmo.` });
+    }
     const regulavel = p.tipo === 'regulavel';
     for (let j = 1; j <= p.quantidade; j++) {
-      y += intervalos[j - 1] as number;
+      const y = yi + (pos.posicoes[j - 1] as number);
       const sufixo = vaos.length > 1 ? ` (vão ${v.indice})` : '';
       componentes.push({
         id: `prateleira_v${v.indice}_${j}`,
@@ -452,7 +471,6 @@ function calcularInterior(
           dz: dmm(regulavel ? Pint - ft - rfp : Pint - rfp),
         },
       });
-      y += e;
     }
   }
   return vaos;

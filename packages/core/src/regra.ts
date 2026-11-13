@@ -51,7 +51,11 @@ export type PapelComponente =
   // Mesa
   | 'pe'
   | 'saia'
-  | 'engrosso';
+  | 'engrosso'
+  // Itens comprados ou de referência (não são cortados)
+  | 'pe_comprado'
+  | 'suporte'
+  | 'gabinete_ref';
 
 /** Frente: portas e frentes de gaveta. Gaveta: caixa da gaveta. O fundo da gaveta usa o material do fundo. */
 export type MaterialComponente = 'estrutura' | 'fundo' | 'frente' | 'gaveta';

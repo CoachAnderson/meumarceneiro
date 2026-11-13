@@ -129,6 +129,10 @@ export interface Juncao {
   b: string;
   /** Pontos de fixação, em coordenadas do móvel (no plano de contato, no meio da espessura de `a`). */
   pontos: Ponto[];
+  /** Como as peças se unem (caixa da gaveta com parafuso: `parafuso`). */
+  tipo?: Exclude<TipoJuncao, 'nenhuma'>;
+  /** Cavilhas a mais, junto do minifix. */
+  cavilhas?: Ponto[];
 }
 
 /** Posições ao longo de um trecho [t0, t1]: jf da frente, jt do fundo, e pontos a mais se o vão passar de jp. */
@@ -250,7 +254,8 @@ export function furarMontagem(f: EntradaFuracao, ctx: ContextoFuracao): Juncao[]
         return g;
       };
       const pontos = posicoes.map((p) => ponto(p));
-      juncoes.push({ a: a.c.id, b: b.c.id, pontos });
+      const juncao: Juncao = { a: a.c.id, b: b.c.id, pontos, tipo };
+      juncoes.push(juncao);
 
       // Face de `b` que recebe o topo de `a`, a borda de `a` e a face de fora de `b`.
       const faceB = `${d}${ponta === 'min' ? '+' : '-'}` as DirecaoFace;
@@ -293,7 +298,9 @@ export function furarMontagem(f: EntradaFuracao, ctx: ContextoFuracao): Juncao[]
         contagem.minifix += pontos.length;
         // Cavilha a 32 mm do primeiro e do último minifix, para dentro.
         if (comCavilha && posicoes.length >= 2 && posicoes.at(-1)! - posicoes[0]! >= 1280) {
-          cavilhar([ponto(posicoes[0]! + 320), ponto(posicoes.at(-1)! - 320)]);
+          const extras = [ponto(posicoes[0]! + 320), ponto(posicoes.at(-1)! - 320)];
+          cavilhar(extras);
+          juncao.cavilhas = extras;
         }
       }
     }
@@ -545,6 +552,10 @@ export const NOME_FURO: Record<FinalidadeFuro, readonly [string, string]> = {
   corredica: ['furo de corrediça', 'furos de corrediça'],
   fixacao_frente: ['furo de fixação da frente', 'furos de fixação da frente'],
   engrosso: ['furo da borda engrossada', 'furos da borda engrossada'],
+  fixacao_pe: ['furo da chapa do pé', 'furos da chapa do pé'],
+  sapata: ['furo da sapata', 'furos da sapata'],
+  suporte: ['furo do suporte', 'furos do suporte'],
+  fixacao_tampo: ['furo de fixação do tampo', 'furos de fixação do tampo'],
   minifix_tambor: ['tambor de minifix', 'tambores de minifix'],
   minifix_haste: ['furo de haste de minifix', 'furos de haste de minifix'],
   minifix_pino: ['furo de pino de minifix', 'furos de pino de minifix'],

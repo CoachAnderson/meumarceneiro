@@ -31,17 +31,21 @@ const ID1 = '11111111-1111-4111-8111-111111111111';
 const ID2 = '22222222-2222-4222-8222-222222222222';
 
 describe('arquivos 3D do ver no ambiente', () => {
-  it('balde público (acesso só por endereço), GLB e USDZ de até 5 MB', async () => {
+  it('balde público (acesso só por endereço), GLB, USDZ e a cena dos óculos (JSON), de até 5 MB', async () => {
     const b = (await s.lerDireto<{ public: boolean; file_size_limit: string; allowed_mime_types: string[] }>(`select public, file_size_limit, allowed_mime_types from storage.buckets where id = 'ar'`))[0]!;
     expect(b.public).toBe(true);
     expect(Number(b.file_size_limit)).toBe(5 * 1024 * 1024);
-    expect(b.allowed_mime_types).toEqual(['model/gltf-binary', 'model/vnd.usdz+zip']);
+    expect(b.allowed_mime_types).toEqual(['model/gltf-binary', 'model/vnd.usdz+zip', 'application/json']);
   });
 
   it('membros gravam só na pasta da própria marcenaria, com nome sorteado e extensão certa', async () => {
     expect((await gravar(ana, `${empresaA}/${ID1}.glb`)).ok).toBe(true);
     expect((await gravar(ana, `${empresaA}/${ID1}.usdz`)).ok).toBe(true);
     expect((await gravar(rita, `${empresaA}/${ID2}.glb`)).ok).toBe(true);
+    // Cena para os óculos (migration ver_em_oculos).
+    expect((await gravar(ana, `${empresaA}/${ID1}.json`)).ok).toBe(true);
+    expect((await gravar(ana, `${empresaB}/${ID2}.json`)).ok).toBe(false);
+    expect((await gravar(ana, `${empresaA}/${ID2}.js`)).ok).toBe(false);
     // Pasta de outra marcenaria, nome livre, outra extensão, fora de pasta, subpasta.
     expect((await gravar(ana, `${empresaB}/${ID1}.glb`)).ok).toBe(false);
     expect((await gravar(ana, `${empresaA}/qualquer.glb`)).ok).toBe(false);
@@ -70,11 +74,18 @@ describe('arquivos 3D do ver no ambiente', () => {
     expect((await gravar(rita, `${empresaA}/${ID2}.usdz`)).ok).toBe(false);
   });
 
-  it('a migration cria as duas políticas e nenhuma de leitura', async () => {
+  it('a migration cria as duas políticas e nenhuma de leitura pública', async () => {
     const p = await s.lerDireto<{ policyname: string; cmd: string }>(`select policyname, cmd from pg_policies where schemaname = 'storage' and tablename = 'objects' order by policyname`);
     expect(p).toEqual([
       { policyname: 'ar_delete', cmd: 'DELETE' },
       { policyname: 'ar_insert', cmd: 'INSERT' },
+      // Manual de montagem publicado (migration etiquetas_oficina): o mesmo esquema.
+      { policyname: 'manuais_delete', cmd: 'DELETE' },
+      { policyname: 'manuais_insert', cmd: 'INSERT' },
+      // Fotos da medição (migration medicao_local): balde privado, com leitura só para a equipe.
+      { policyname: 'medicoes_fotos_delete', cmd: 'DELETE' },
+      { policyname: 'medicoes_fotos_insert', cmd: 'INSERT' },
+      { policyname: 'medicoes_fotos_select', cmd: 'SELECT' },
     ]);
   });
 });

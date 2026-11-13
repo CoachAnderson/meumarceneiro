@@ -11,11 +11,11 @@ import type { Buscar, Resposta } from '../../../supabase/functions/_shared/mp';
  * Não testa o Mercado Pago de verdade: isso exige as credenciais de teste.
  */
 
-const ARQUIVO = new URL('../../../supabase/functions/assinatura/oferta.json', import.meta.url);
-const ESPERADO = JSON.stringify(OFERTAS, null, 2) + '\n';
+const ARQUIVO = new URL('../../../supabase/functions/assinatura/oferta.ts', import.meta.url);
+const ESPERADO = `// Gerado a partir de packages/core/src/assinatura.ts. Não edite à mão: rode GERAR=1 npm test.\nexport default ${JSON.stringify(OFERTAS, null, 2)};\n`;
 
 describe('catálogo do servidor em dia com o motor', () => {
-  it('oferta.json é gerado do motor (GERAR=1 regrava)', () => {
+  it('oferta.ts é gerado do motor (GERAR=1 regrava)', () => {
     if (process.env.GERAR === '1' || !existsSync(ARQUIVO)) writeFileSync(ARQUIVO, ESPERADO);
     expect(readFileSync(ARQUIVO, 'utf8')).toBe(ESPERADO);
   });
@@ -77,7 +77,8 @@ describe('assinar', () => {
     expect(criacao!.headers.Authorization).toBe('Bearer credencial-mp');
     // A reserva usa o login do usuário; o vínculo, a chave de serviço.
     expect(a.para('/rpc/iniciar_assinatura')[0]).toMatchObject({ corpo: { p_empresa: EMPRESA, p_plano: 'mensal' }, headers: { authorization: 'Bearer login-do-usuario', apikey: 'anon' } });
-    expect(a.para('/rpc/vincular_assinatura_mp')[0]).toMatchObject({ corpo: { p_id: REFERENCIA, p_mp_id: MP_ID, p_valor_centavos: 14900, p_email: 'dono@marcenaria.com.br' }, headers: { authorization: 'Bearer servico' } });
+    expect(a.para('/rpc/vincular_assinatura_mp')[0]).toMatchObject({ corpo: { p_id: REFERENCIA, p_mp_id: MP_ID, p_valor_centavos: 14900, p_email: 'dono@marcenaria.com.br' }, headers: { apikey: 'servico' } });
+    expect(a.para('/rpc/vincular_assinatura_mp')[0]!.headers.authorization).toBeUndefined();
   });
 
   it('preço, frequência ou referência enviados pelo navegador são ignorados', async () => {
@@ -154,7 +155,7 @@ describe('consultar e alterar', () => {
     expect(r).toEqual({ status: 200, corpo: { sincronizada: true, status: 'authorized' } });
     expect(a.para('/rpc/aplicar_assinatura_mp')[0]).toMatchObject({
       corpo: { p_id: REFERENCIA, p_mp_id: MP_ID, p_status: 'authorized', p_proxima_cobranca: '2026-12-11T10:00:00.000-04:00', p_ultima_cobranca: '2026-11-11T10:00:00.000-04:00' },
-      headers: { authorization: 'Bearer servico' },
+      headers: { apikey: 'servico' },
     });
     // A leitura da assinatura usa o login do usuário (a RLS só mostra ao dono).
     expect(a.para('/rest/v1/assinaturas?')[0]!.headers.authorization).toBe('Bearer login-do-usuario');

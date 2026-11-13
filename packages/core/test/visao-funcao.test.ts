@@ -9,11 +9,11 @@ import { textoDoPedido, tratar, type Buscar, type Dependencias, type Resposta } 
  * uso). Não testa a qualidade da leitura de fotos: isso depende da IA real.
  */
 
-const ARQUIVO = new URL('../../../supabase/functions/visao-ia/ferramenta.json', import.meta.url);
-const ESPERADO = JSON.stringify({ ferramenta: FERRAMENTA_VISAO, instrucoes: INSTRUCOES_VISAO }, null, 2) + '\n';
+const ARQUIVO = new URL('../../../supabase/functions/visao-ia/ferramenta.ts', import.meta.url);
+const ESPERADO = `// Gerado a partir de packages/core/src/visao.ts. Não edite à mão: rode GERAR=1 npm test.\nexport default ${JSON.stringify({ ferramenta: FERRAMENTA_VISAO, instrucoes: INSTRUCOES_VISAO }, null, 2)} as const;\n`;
 
 describe('arquivos da função em dia com o motor', () => {
-  it('ferramenta.json é gerado do motor (GERAR=1 regrava)', () => {
+  it('ferramenta.ts é gerado do motor (GERAR=1 regrava)', () => {
     if (process.env.GERAR === '1' || !existsSync(ARQUIVO)) writeFileSync(ARQUIVO, ESPERADO);
     expect(readFileSync(ARQUIVO, 'utf8')).toBe(ESPERADO);
   });
@@ -170,5 +170,28 @@ describe('IA falha ou não vê móvel', () => {
       expect(texto).not.toContain('segredo');
       expect(texto).not.toContain(IMAGEM.base64);
     }
+  });
+});
+
+describe('resposta das funções: CORS sempre presente', () => {
+  it('endereço do site com barra no final, maiúsculas ou vários endereços', async () => {
+    const { origemPermitida } = await import('../../../supabase/functions/_shared/http');
+    expect(origemPermitida('', 'https://app.exemplo.com.br')).toBe('*');
+    expect(origemPermitida('https://App.Exemplo.com.br/', 'https://app.exemplo.com.br')).toBe('https://app.exemplo.com.br');
+    expect(origemPermitida('https://a.com.br, https://www.a.com.br', 'https://www.a.com.br')).toBe('https://www.a.com.br');
+    // Origem fora da lista: devolve a configurada (o navegador bloqueia, como deve).
+    expect(origemPermitida('https://a.com.br', 'https://golpe.test')).toBe('https://a.com.br');
+  });
+
+  it('falha inesperada no servidor ainda volta com CORS e mensagem legível', async () => {
+    const { cabecalhosCors, responder } = await import('../../../supabase/functions/_shared/http');
+    const registros: string[] = [];
+    const r = await responder(cabecalhosCors('', 'https://a.com.br'), async () => {
+      throw new TypeError('quebrou');
+    }, (m) => registros.push(m));
+    expect(r.status).toBe(500);
+    expect(r.headers.get('access-control-allow-origin')).toBe('*');
+    expect(((await r.json()) as { codigo: string }).codigo).toBe('falha_servidor');
+    expect(registros).toEqual(['TypeError: quebrou']);
   });
 });

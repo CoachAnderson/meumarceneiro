@@ -9,7 +9,7 @@
  * espessura da fita para o corte é feito no otimizador (Fase 6), porque a
  * fita tem centésimos de mm e a peça, décimos.
  */
-import { intersecao } from './geometria';
+import { intersecao, orientacaoDaPeca } from './geometria';
 import type { Componente, ResultadoModulo } from './modulo';
 import type { DirecaoFace, Furo } from './frentes';
 import { NOME_FURO } from './furacao';
@@ -46,6 +46,10 @@ export interface CanalFundo {
   distanciaTras: Dmm;
   /** Comprimento do canal: percorre a peça inteira, na direção do comprimento. */
   comprimento: Dmm;
+  /** Distância da borda da frente da peça (v = 0) até o início do canal. */
+  inicio?: Dmm;
+  /** Face da peça onde o canal é aberto (a que olha para o fundo). */
+  face?: DirecaoFace;
 }
 
 export interface Peca {
@@ -193,7 +197,7 @@ export function gerarPecas(entrada: EntradaGeracao): Peca[] {
     throw new ErroPecas('Fundo em canal sem a peça de fundo ou a medida "c" no resultado do módulo.');
   }
 
-  return resultado.componentes.map((c) => {
+  return resultado.componentes.filter((c) => !c.comprado).map((c) => {
     const base = bordasPadrao(c, entrada.montagem);
     const bordas: Bordas = { ...base, ...(opcoes.bordas?.[c.id] ?? {}) };
     const usinagens: Usinagem[] = [];
@@ -204,6 +208,7 @@ export function gerarPecas(entrada: EntradaGeracao): Peca[] {
         profundidade: dmm(profundidadeCanal!),
         distanciaTras: dmm(c.caixa.z + c.caixa.dz - (fundo.caixa.z + fundo.caixa.dz)),
         comprimento: c.comprimento,
+        ...posicaoDoCanal(c, fundo),
       });
     }
     for (const f of c.furos ?? []) usinagens.push({ tipo: 'furos', ...f });
@@ -330,6 +335,19 @@ const NOME_TOPO: Record<DirecaoFace, string> = { 'x+': 'topo direito', 'x-': 'to
 export const descreverFace = (u: Pick<Furacao, 'face' | 'topo'>): string => (u.topo ? NOME_TOPO : NOME_FACE)[u.face];
 
 /** Texto curto de uma usinagem, para listas, etiquetas e CSV. Medidas em mm. */
+/** Onde o canal cai na peça: início a partir da borda da frente e face que olha para o fundo. */
+function posicaoDoCanal(c: Componente, fundo: Componente): { inicio?: Dmm; face?: DirecaoFace } {
+  const o = orientacaoDaPeca(c);
+  if (!o) return {};
+  const [, el, ee] = o;
+  const tam = { x: 'dx', y: 'dy', z: 'dz' } as const;
+  const inicio = dmm(Math.max(0, fundo.caixa[el] - c.caixa[el]));
+  const meioFundo = fundo.caixa[ee] * 2 + fundo.caixa[tam[ee]];
+  const meioPeca = c.caixa[ee] * 2 + c.caixa[tam[ee]];
+  const face = meioFundo === meioPeca ? undefined : (`${ee}${meioFundo > meioPeca ? '+' : '-'}` as DirecaoFace);
+  return { inicio, ...(face ? { face } : {}) };
+}
+
 export function descreverUsinagem(u: Usinagem): string {
   if (u.tipo === 'canal_fundo') {
     return `Canal ${formatarMm(u.largura)} × ${formatarMm(u.profundidade)}, a ${formatarMm(u.distanciaTras)} da borda de trás`;
